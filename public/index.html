@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Air Pollution Monitor - Real-time Air Quality</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" 
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" 
+          crossorigin=""/>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loadingScreen" class="loading-screen">
+        <div class="loading-content">
+            <div class="loading-logo">
+                <div id="globeContainer" class="globe-container">
+                    <canvas id="earthCanvas"></canvas>
+                </div>
+                <h1>Air Pollution Monitor</h1>
+                <p>Real-time Air Quality Analysis</p>
+            </div>
+            <div class="loading-spinner">
+                <div class="spinner"></div>
+            </div>
+            <div class="loading-text">
+                <p id="loadingStatus">Detecting your location...</p>
+                <div class="loading-bar">
+                    <div class="loading-progress" id="loadingProgress"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="app" style="display: none;">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <div class="logo-icon">🌍</div>
+                    <h1>Air Pollution Monitor</h1>
+                </div>
+                <div class="location-info">
+                    <div class="city-name" id="cityName">Loading...</div>
+                    <div class="coordinates" id="coordinates">--</div>
+                </div>
+                <div class="location-controls">
+                    <input type="text" id="locationInput" placeholder="Enter city or coordinates..." />
+                    <button id="searchLocationBtn">🔍</button>
+                    <button id="useCurrentLocationBtn">📍</button>
+                    <div class="location-suggestions" id="locationSuggestions"></div>
+                </div>
+                <div class="last-updated" id="lastUpdated">Last updated: --</div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Current Air Quality Card -->
+            <section class="air-quality-card">
+                <div class="aqi-display-container">
+                    <div class="aqi-main-display">
+                        <div class="aqi-large-number" id="aqiNumber">--</div>
+                        <div class="aqi-category-text" id="aqiCategory">Loading...</div>
+                        <div class="aqi-description-text" id="aqiDescription">Fetching air quality data...</div>
+                    </div>
+                    <div class="aqi-visual-block">
+                        <div class="aqi-visual-number" id="aqiVisualNumber">--</div>
+                    </div>
+                    <div class="aqi-bottom-border"></div>
+                </div>
+                
+                <!-- AQI Calculator -->
+                <div class="aqi-calculator">
+                    <h3>🧮 AQI Calculator</h3>
+                    <div class="calculator-content">
+                        <div class="calculator-inputs">
+                            <div class="input-group">
+                                <label for="pollutantSelect">Pollutant:</label>
+                                <select id="pollutantSelect">
+                                    <option value="pm2_5">PM2.5 (μg/m³)</option>
+                                    <option value="pm10">PM10 (μg/m³)</option>
+                                    <option value="o3">O₃ (ppm)</option>
+                                    <option value="co">CO (ppm)</option>
+                                    <option value="so2">SO₂ (ppb)</option>
+                                    <option value="no2">NO₂ (ppb)</option>
+                                </select>
+                            </div>
+                            <div class="input-group">
+                                <label for="concentrationInput">Concentration:</label>
+                                <input type="number" id="concentrationInput" placeholder="Enter value" step="0.01">
+                            </div>
+                            <button id="calculateAQI" class="calculate-btn">Calculate AQI</button>
+                        </div>
+                        <div class="calculator-result" id="calculatorResult">
+                            <div class="result-aqi" id="resultAQI">--</div>
+                            <div class="result-level" id="resultLevel">Enter values to calculate</div>
+                            <div class="result-description" id="resultDescription"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Pollutant Breakdown -->
+            <section class="pollutants-section">
+                <h2>Pollutant Analysis</h2>
+                <div class="pollutants-grid">
+                    <div class="pollutant-card" id="pm25Card">
+                        <div class="pollutant-icon">💨</div>
+                        <div class="pollutant-info">
+                            <h4>PM2.5</h4>
+                            <div class="pollutant-value" id="pm25Value">-- μg/m³</div>
+                            <div class="pollutant-status" id="pm25Status">Loading...</div>
+                        </div>
+                    </div>
+                    <div class="pollutant-card" id="pm10Card">
+                        <div class="pollutant-icon">🌫️</div>
+                        <div class="pollutant-info">
+                            <h4>PM10</h4>
+                            <div class="pollutant-value" id="pm10Value">-- μg/m³</div>
+                            <div class="pollutant-status" id="pm10Status">Loading...</div>
+                        </div>
+                    </div>
+                    <div class="pollutant-card" id="no2Card">
+                        <div class="pollutant-icon">🚗</div>
+                        <div class="pollutant-info">
+                            <h4>NO₂</h4>
+                            <div class="pollutant-value" id="no2Value">-- μg/m³</div>
+                            <div class="pollutant-status" id="no2Status">Loading...</div>
+                        </div>
+                    </div>
+                    <div class="pollutant-card" id="o3Card">
+                        <div class="pollutant-icon">☀️</div>
+                        <div class="pollutant-info">
+                            <h4>O₃</h4>
+                            <div class="pollutant-value" id="o3Value">-- μg/m³</div>
+                            <div class="pollutant-status" id="o3Status">Loading...</div>
+                        </div>
+                    </div>
+                    <div class="pollutant-card" id="coCard">
+                        <div class="pollutant-icon">🔥</div>
+                        <div class="pollutant-info">
+                            <h4>CO</h4>
+                            <div class="pollutant-value" id="coValue">-- μg/m³</div>
+                            <div class="pollutant-status" id="coStatus">Loading...</div>
+                        </div>
+                    </div>
+                    <div class="pollutant-card" id="so2Card">
+                        <div class="pollutant-icon">🏭</div>
+                        <div class="pollutant-info">
+                            <h4>SO₂</h4>
+                            <div class="pollutant-value" id="so2Value">-- μg/m³</div>
+                            <div class="pollutant-status" id="so2Status">Loading...</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Forecast Chart -->
+            <section class="forecast-section">
+                <h2>24-Hour Air Quality Forecast</h2>
+                <div class="chart-container">
+                    <canvas id="forecastChart"></canvas>
+                </div>
+            </section>
+
+            <!-- ML Predictions Section -->
+            <section class="predictions-section">
+                <h2>🤖 AI Predictions (48 Hours)</h2>
+                <div class="prediction-info">
+                    <div class="prediction-meta">
+                        <span class="prediction-method" id="predictionMethod">Linear Regression</span>
+                        <span class="prediction-confidence" id="predictionConfidence">85% Confidence</span>
+                    </div>
+                    <div class="prediction-insights" id="predictionInsights">
+                        <p>Air quality expected to remain stable</p>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="predictionsChart"></canvas>
+                </div>
+            </section>
+
+            <!-- Weather Context -->
+            <section class="weather-section">
+                <h2>Weather Conditions</h2>
+                <div class="weather-grid">
+                    <div class="weather-card">
+                        <div class="weather-icon">🌡️</div>
+                        <div class="weather-info">
+                            <h4>Temperature</h4>
+                            <div class="weather-value" id="temperature">--°C</div>
+                        </div>
+                    </div>
+                    <div class="weather-card">
+                        <div class="weather-icon">💧</div>
+                        <div class="weather-info">
+                            <h4>Humidity</h4>
+                            <div class="weather-value" id="humidity">--%</div>
+                        </div>
+                    </div>
+                    <div class="weather-card">
+                        <div class="weather-icon">💨</div>
+                        <div class="weather-info">
+                            <h4>Wind Speed</h4>
+                            <div class="weather-value" id="windSpeed">-- m/s</div>
+                        </div>
+                    </div>
+                    <div class="weather-card">
+                        <div class="weather-icon">🔽</div>
+                        <div class="weather-info">
+                            <h4>Pressure</h4>
+                            <div class="weather-value" id="pressure">-- hPa</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Health Recommendations -->
+            <section class="health-section">
+                <h2>Health Recommendations</h2>
+                <div class="recommendations" id="recommendations">
+                    <div class="recommendation-item">Loading recommendations...</div>
+                </div>
+            </section>
+
+            <!-- Interactive Map -->
+            <section class="map-section">
+                <h2>🌍 Air Quality Map</h2>
+                <div class="map-container">
+                    <div id="airQualityMap"></div>
+                    <div class="map-controls">
+                        <button class="map-control-btn" id="heatmapToggle" onclick="toggleHeatmap()">
+                            🔥 Heatmap
+                        </button>
+                        <button class="map-control-btn" id="zonesToggle" onclick="toggleZones()">
+                            🗺️ AQI Zones
+                        </button>
+                        <button class="map-control-btn" id="stationsToggle" onclick="toggleStations()">
+                            📍 Stations
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Data Sources -->
+            <section class="sources-section">
+                <h2>Data Sources</h2>
+                <div class="sources-grid">
+                    <div class="source-card">
+                        <div class="source-logo">🌤️</div>
+                        <h4>OpenWeather</h4>
+                        <p>Real-time air pollution data</p>
+                        <div class="source-status" id="openweatherStatus">Live</div>
+                    </div>
+                    <div class="source-card">
+                        <div class="source-logo">🚀</div>
+                        <h4>NASA</h4>
+                        <p>Satellite imagery & data</p>
+                        <div class="source-status" id="nasaStatus">Live</div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Leaflet JavaScript -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" 
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" 
+            crossorigin=""></script>
+    <!-- Leaflet Heat Plugin -->
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+    <!-- Turf.js for Voronoi zones -->
+    <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
+    
+    <!-- Three.js for 3D Earth -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.161/build/three.module.js",
+                "jsm/": "https://cdn.jsdelivr.net/npm/three@0.161/examples/jsm/"
+            }
+        }
+    </script>
+    <script type="module" src="app.js"></script>
+</body>
+</html>
